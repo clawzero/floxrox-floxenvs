@@ -1,29 +1,48 @@
 # Python DevOps Flox Environment
 
-Python tools for automation and DevOps.
+Python development and DevOps automation tools.
 
-## Packages
+## Features
 
-- Python 3.12 (full)
-- pip, poetry, pyenv
-- Ansible
-- Docker client
+- **Python 3.12** - Latest stable Python
+- **Poetry** - Dependency management
+- **UV** - Fast Python package manager
+- **Pyenv** - Python version management
+- **Ansible** - Automation framework
+- **Docker client** - Container management
 
 ## Usage
 
 ```bash
 flox activate
 
-# Python
-python3 script.py
+# Python project detection (auto-activates venv)
+cd /path/to/project
 
-# Poetry
+# Poetry projects
 poetry install
 poetry run pytest
 
-# Ansible
-ansible-playbook site.yml
+# UV projects
+uv sync
+uv run pytest
 
-# Docker
-docker ps
+# pip projects
+pip install -r requirements.txt
 ```
+
+## Features
+
+- Auto-detects project type (Poetry/UV/pip)
+- Creates isolated virtual environments
+- Installs dependencies automatically
+- Supports multiple Python versions
+
+## Variables
+
+| Variable | Description |
+|----------|-------------|
+| `PYTHONUTF8` | Enable UTF-8 mode |
+| `POETRY_VIRTUALENVS_IN_PROJECT` | Poetry venv in project |
+| `UV_CACHE_DIR` | UV cache location |
+| `PIP_CACHE_DIR` | pip cache location |
