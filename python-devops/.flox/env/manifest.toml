@@ -1,0 +1,167 @@
+#
+# This is a Flox environment manifest.
+# Visit flox.dev/docs/concepts/manifest/
+# or see flox-edit(1), manifest.toml(5) for more information.
+#
+version = 1
+
+[install]
+# Python runtime
+python.pkg-path = "python3"
+python.version = "3.12.*"
+
+# Package management
+pip.pkg-path = "python312Packages.pip"
+poetry.pkg-path = "poetry"
+uv.pkg-path = "uv"
+
+# Version management
+pyenv.pkg-path = "pyenv"
+
+# DevOps tools
+ansible.pkg-path = "ansible"
+docker-client.pkg-path = "docker-client"
+kubectl.pkg-path = "kubernetes"
+
+# Development tools
+gum.pkg-path = "gum"
+httpie.pkg-path = "httpie"
+
+[vars]
+# Python configuration
+PYTHONUTF8 = "1"
+PIP_DISABLE_PIP_VERSION_CHECK = "1"
+POETRY_VIRTUALENVS_IN_PROJECT = "true"
+UV_CACHE_DIR = "$FLOX_ENV_CACHE/.uv-cache"
+PIP_CACHE_DIR = "$FLOX_ENV_CACHE/.pip-cache"
+
+[hook]
+on-activate = '''
+# Python DevOps environment bootstrap
+
+# Ensure cache directories exist
+mkdir -p "$FLOX_ENV_CACHE/.uv-cache"
+mkdir -p "$FLOX_ENV_CACHE/.pip-cache"
+mkdir -p "$FLOX_ENV_CACHE/venvs"
+
+# Check for pyproject.toml or requirements files
+detect_python_project() {
+    if [ -f "$FLOX_ENV_PROJECT/pyproject.toml" ]; then
+        echo "poetry"
+    elif [ -f "$FLOX_ENV_PROJECT/requirements.txt" ]; then
+        echo "pip"
+    elif [ -f "$FLOX_ENV_PROJECT/uv.lock" ]; then
+        echo "uv"
+    else
+        echo "none"
+    fi
+}
+
+# Create virtual environment based on project type
+create_python_env() {
+    local project_type=$(detect_python_project)
+
+    case "$project_type" in
+        poetry)
+            echo "Poetry project detected"
+            poetry config virtualenvs.in-project true --local 2>/dev/null || true
+            poetry env use python3
+            ;;
+        uv)
+            echo "UV project detected"
+            uv venv
+            ;;
+        pip)
+            echo "pip project detected"
+            python3 -m venv "$FLOX_ENV_CACHE/venvs/project"
+            ;;
+        *)
+            echo "No Python project detected, creating base venv"
+            python3 -m venv "$FLOX_ENV_CACHE/venvs/base"
+            ;;
+    esac
+}
+
+# Activate virtual environment
+activate_python_env() {
+    local project_type=$(detect_python_project)
+    local venv_path=""
+
+    case "$project_type" in
+        poetry)
+            venv_path=$(poetry env info --path 2>/dev/null)
+            ;;
+        uv)
+            venv_path="$FLOX_ENV_PROJECT/.venv"
+            ;;
+        pip)
+            venv_path="$FLOX_ENV_CACHE/venvs/project"
+            ;;
+        *)
+            venv_path="$FLOX_ENV_CACHE/venvs/base"
+            ;;
+    esac
+
+    if [ -n "$venv_path" ] && [ -f "$venv_path/bin/activate" ]; then
+        source "$venv_path/bin/activate"
+        echo "Python environment activated: $venv_path"
+    fi
+}
+
+# Install dependencies based on project type
+install_python_deps() {
+    local project_type=$(detect_python_project)
+
+    case "$project_type" in
+        poetry)
+            echo "Installing Poetry dependencies..."
+            poetry install
+            ;;
+        uv)
+            echo "Installing UV dependencies..."
+            uv sync
+            ;;
+        pip)
+            echo "Installing pip dependencies..."
+            if [ -f "$FLOX_ENV_PROJECT/requirements.txt" ]; then
+                pip install -r "$FLOX_ENV_PROJECT/requirements.txt"
+            fi
+            ;;
+    esac
+}
+
+if [[ "$FLOX_ENVS_TESTING" != "1" ]]; then
+    if [ -z "$FLOX_PYENV_PATH" ]; then
+        if [[ "$FLOX_ENVS_SETUP" == "1" ]]; then
+            create_python_env
+        else
+            gum spin --spinner dot --title "Creating Python environment" -- bash -c create_python_env
+        fi
+        echo "Python environment created"
+    else
+        echo "Python environment already exists at $FLOX_PYENV_PATH"
+    fi
+
+    activate_python_env
+fi
+'''
+
+[profile]
+bash = '''
+alias py="python3"
+alias pip="pip3"
+alias venv-create="python3 -m venv $FLOX_ENV_CACHE/venvs/new"
+alias poetry-install="poetry install"
+alias uv-install="uv pip install"
+'''
+
+zsh = '''
+py() { python3 $@ }
+pip() { pip3 $@ }
+venv-create() { python3 -m venv $FLOX_ENV_CACHE/venvs/$1 }
+poetry-install() { poetry install $@ }
+uv-install() { uv pip install $@ }
+'''
+
+[options]
+systems = ["aarch64-darwin", "aarch64-linux", "x86_64-darwin", "x86_64-linux"]

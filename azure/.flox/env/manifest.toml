@@ -1,0 +1,110 @@
+#
+# This is a Flox environment manifest.
+# Visit flox.dev/docs/concepts/manifest/
+# or see flox-edit(1), manifest.toml(5) for more information.
+#
+version = 1
+
+[install]
+# Azure CLI and tools
+azure-cli.pkg-path = "azure-cli"
+azure-functions.pkg-path = "azure-functions-core-tools-8"
+
+# Infrastructure as Code
+terraform.pkg-path = "terraform"
+terragrunt.pkg-path = "terragrunt"
+
+# Kubernetes
+kubectl.pkg-path = "kubernetes"
+helm.pkg-path = "helm"
+k9s.pkg-path = "k9s"
+
+# Utilities
+gum.pkg-path = "gum"
+coreutils.pkg-path = "coreutils"
+
+[vars]
+# Azure configuration defaults
+AZURE_TF_RESOURCE_GROUP = "flox"
+AZURE_TF_LOCATION = "eastus"
+AZURE_VM_SIZE = "Standard_B2s"
+
+[hook]
+on-activate = '''
+# Azure DevOps environment bootstrap
+bootstrap_azure_config() {
+    local config_file="$HOME/.config/flox/azure-devops/session"
+    local config_dir="$(dirname "$config_file")"
+
+    # Check if AZURE_ACCESS_TOKEN is already set
+    if [ -n "$AZURE_ACCESS_TOKEN" ]; then
+        echo "Azure access token is already set as an environment variable."
+        return 0
+    fi
+
+    # Check for existing session file
+    if [ -f "$config_file" ]; then
+        source "$config_file"
+        if [ -n "$AZURE_ACCESS_TOKEN" ]; then
+            echo "Azure credentials loaded from session file."
+            export AZURE_ACCESS_TOKEN
+            export AZURE_TENANT_ID
+            export AZURE_SUBSCRIPTION_ID
+            return 0
+        fi
+    fi
+
+    # Prompt for Azure credentials
+    mkdir -p "$config_dir"
+    gum style --border double --margin "1 2" --padding "1 4" \
+        "Azure DevOps Environment Setup" \
+        "" \
+        "You need to configure Azure credentials to use this environment."
+
+    AZURE_SUBSCRIPTION_ID=$(gum input --placeholder "your-subscription-id" --header "Azure Subscription ID")
+    AZURE_TENANT_ID=$(gum input --placeholder "your-tenant-id" --header "Azure Tenant ID")
+    AZURE_CLIENT_ID=$(gum input --placeholder "your-client-id" --header "Azure Client ID")
+    AZURE_ACCESS_TOKEN=$(gum input --password --header "Azure Client Secret")
+
+    # Persist credentials if user chooses
+    if gum confirm "Persist credentials for future sessions?" --affirmative="Yes" --negative="No"; then
+        cat > "$config_file" << SESSION
+AZURE_SUBSCRIPTION_ID="$AZURE_SUBSCRIPTION_ID"
+AZURE_TENANT_ID="$AZURE_TENANT_ID"
+AZURE_CLIENT_ID="$AZURE_CLIENT_ID"
+AZURE_ACCESS_TOKEN="$AZURE_ACCESS_TOKEN"
+SESSION
+        chmod 600 "$config_file"
+        echo "Credentials saved to $config_file"
+    else
+        echo "Credentials will only be available for this session."
+    fi
+
+    export AZURE_SUBSCRIPTION_ID AZURE_TENANT_ID AZURE_CLIENT_ID AZURE_ACCESS_TOKEN
+    echo "Azure credentials configured for this session."
+}
+
+if [[ "$FLOX_ENVS_TESTING" != "1" ]]; then
+    bootstrap_azure_config
+fi
+'''
+
+[profile]
+bash = '''
+alias az-login="az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_ACCESS_TOKEN --tenant \$AZURE_TENANT_ID"
+alias az-whoami="az account show"
+alias az-list="az account list --output table"
+alias tf-init="terraform init -upgrade"
+alias tg-plan="terragrunt plan --terragrunt-working-dir ."
+'''
+
+zsh = '''
+az-login() { az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_ACCESS_TOKEN --tenant $AZURE_TENANT_ID }
+az-whoami() { az account show }
+az-list() { az account list --output table }
+tf-init() { terraform init -upgrade }
+tg-plan() { terragrunt plan --terragrunt-working-dir . }
+'''
+
+[options]
+systems = ["aarch64-darwin", "aarch64-linux", "x86_64-darwin", "x86_64-linux"]
