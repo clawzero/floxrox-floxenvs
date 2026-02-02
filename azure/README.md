@@ -1,48 +1,77 @@
-# Azure DevOps Flox Environment
+# Azure Flox Environment
 
-Comprehensive Azure cloud and DevOps tools with secure credential management.
+Comprehensive Azure cloud, DevOps, and Python development environment.
 
 ## Features
 
-- **Azure CLI** (`az`) - Azure cloud management
-- **Azure Functions** - Function apps development
-- **Terraform** - Infrastructure as Code
-- **Terragrunt** - Terraform wrapper
-- **Kubernetes** (`kubectl`, `helm`, `k9s`) - Container orchestration
+### Cloud Management
+- **Azure CLI** (`az`) - Full Azure cloud management
+- **Azure SDK for Python** - Azure-identity, azure-mgmt-* packages
+
+### Infrastructure as Code
+- **Terraform** - Infrastructure provisioning
+- **Terragrunt** - Terraform wrapper for multi-environment deployments
+
+### Kubernetes
+- **kubectl** - Kubernetes CLI
+- **helm** - Kubernetes package manager
+- **k9s** - Terminal UI for Kubernetes
+
+### Development
+- **Python 3.12** - Latest stable Python
+- **GitHub CLI** (`gh`) - GitHub repository management
+- **git** with git-lfs - Version control
 
 ## Usage
 
 ```bash
 flox activate
 
-# Authenticate with Azure
+# Azure authentication
 az-login
-
-# List resources
-az account list --output table
+az account show
 
 # Deploy infrastructure
 terraform init
+terraform plan
 terragrunt plan
 
-# Manage Kubernetes
+# Kubernetes management
 kubectl get pods
 k9s
+
+# Python development
+azure-venv
+pip install azure-mgmt-compute
+
+# GitHub operations
+gh repo list
+gh pr create --title "Fix" --body "Description"
 ```
 
-## Credential Management
+## Environment Variables
 
-Credentials are stored securely in `~/.config/flox/azure-devops/session` or can be passed via environment variables:
+| Variable | Description |
+|----------|-------------|
+| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
+| `AZURE_TENANT_ID` | Azure tenant ID |
+| `AZURE_CLIENT_ID` | Service principal client ID |
+| `AZURE_CLIENT_SECRET` | Service principal secret |
+| `GH_TOKEN` | GitHub Personal Access Token |
 
-- `AZURE_SUBSCRIPTION_ID`
-- `AZURE_TENANT_ID`
-- `AZURE_CLIENT_ID`
-- `AZURE_ACCESS_TOKEN`
+## Aliases
 
-## Variables
+| Alias | Command |
+|-------|---------|
+| `az-login` | `az login --service-principal ...` |
+| `tf-init` | `terraform init` |
+| `tf-plan` | `terraform plan` |
+| `tg-plan` | `terragrunt plan` |
+| `kx` | `kubectl` |
+| `azure-venv` | Activate Python venv |
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `AZURE_TF_RESOURCE_GROUP` | `flox` | Default resource group |
-| `AZURE_TF_LOCATION` | `eastus` | Default Azure region |
-| `AZURE_VM_SIZE` | `Standard_B2s` | Default VM size |
+## Requirements
+
+- Flox installed (flox.dev/get)
+- Azure subscription with service principal
+- GitHub Personal Access Token (for `gh` CLI)
