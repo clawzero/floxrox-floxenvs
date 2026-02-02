@@ -1,0 +1,23 @@
+[install]
+python312.pkg-path = "python312Full"
+pip.pkg-path = "python312Packages.pip"
+poetry.pkg-path = "poetry"
+pyenv.pkg-path = "pyenv"
+ansible.pkg-path = "ansible"
+docker-client.pkg-path = "docker-client"
+
+[vars]
+PYTHONUTF8 = "1"
+PIP_DISABLE_PIP_VERSION_CHECK = "1"
+
+[profile.common]
+alias py="python3"
+alias pip="pip3"
+alias venv="python3 -m venv"
+
+[hook]
+setup_venv() {
+  if [ ! -d "$FLOX_ENV_CACHE/venv" ]; then
+    python3 -m venv "$FLOX_ENV_CACHE/venv"
+  fi
+}

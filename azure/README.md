@@ -1,26 +1,35 @@
-# Azure DevOps Environment
+# Azure DevOps Flox Environment
 
-Tools for Azure cloud management and DevOps.
+Comprehensive Azure cloud and DevOps tools.
 
-## Included
+## Packages
 
-- `azure-cli` - Azure CLI
-- `azure-functions-core-tools` - Azure Functions
-- `terraform` - Infrastructure as Code
-- `terragrunt` - Terraform wrapper
-- `kubectl` - Kubernetes CLI
-- `helm` - Kubernetes package manager
-- `k9s` - Kubernetes terminal UI
+- Azure CLI (`az`)
+- Azure Functions Core Tools
+- Terraform & Terragrunt
+- Kubernetes tools (`kubectl`, `helm`, `k9s`)
 
 ## Usage
 
 ```bash
-# Enter environment
 flox activate
 
-# Use Azure CLI
+# Azure
 az login
+az account show
 
-# Deploy with Terraform
+# Terraform
 terraform init
+terragrunt plan
+
+# Kubernetes
+kubectl get pods
+k9s
 ```
+
+## Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AZURE_TF_RESOURCE_GROUP` | `flox` | Default resource group |
+| `AZURE_TF_LOCATION` | `eastus` | Default Azure region |

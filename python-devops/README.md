@@ -1,24 +1,29 @@
-# Python DevOps Environment
+# Python DevOps Flox Environment
 
-Python tools for automation, infrastructure, and DevOps.
+Python tools for automation and DevOps.
 
-## Included
+## Packages
 
-- Python 3.10, 3.11, 3.12, 3.13
-- `pip` - Package manager
-- `poetry` - Dependency management
-- `pyenv` - Python version management
-- `ansible` - Automation
-- `kubernetes` client
+- Python 3.12 (full)
+- pip, poetry, pyenv
+- Ansible
+- Docker client
 
 ## Usage
 
 ```bash
 flox activate
 
-# Install dependencies
-poetry install
+# Python
+python3 script.py
 
-# Run Python scripts
-python script.py
+# Poetry
+poetry install
+poetry run pytest
+
+# Ansible
+ansible-playbook site.yml
+
+# Docker
+docker ps
 ```

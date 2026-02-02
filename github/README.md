@@ -1,26 +1,29 @@
-# GitHub Developer Environment
+# GitHub Developer Flox Environment
 
-CLI tools for GitHub workflows and automation.
+GitHub CLI and developer tools for workflow automation.
 
-## Included
+## Packages
 
 - `gh` - GitHub CLI
 - `act` - GitHub Actions local runner
-- `lazygit` - Terminal UI for git
+- `lazygit` - Terminal UI for Git
 - `delta` - Improved git diff
-- `pygithub` - Python GitHub API library
+- `git` & `git-lfs`
 
 ## Usage
 
 ```bash
 flox activate
 
-# Authenticate
+# GitHub CLI
 gh auth login
+gh pr list
+gh run watch
 
-# Run actions locally
+# Local Actions
 act
 
-# Create PR
-gh pr create --title "Fix bug" --body "Description"
+# Git
+lazygit
+git diff | delta
 ```
