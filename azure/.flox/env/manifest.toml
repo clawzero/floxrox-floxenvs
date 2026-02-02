@@ -35,7 +35,6 @@ gh.version = ">=2.40"
 
 # Infrastructure as Code
 terraform.pkg-path = "terraform"
-terragrunt.pkg-path = "terragrunt"
 
 # Kubernetes
 kubectl.pkg-path = "kubernetes"
@@ -238,8 +237,6 @@ alias az-set-sub="az account set --subscription \$AZURE_SUBSCRIPTION_ID"
 alias tf-init="terraform init"
 alias tf-plan="terraform plan"
 alias tf-apply="terraform apply"
-alias tg-plan="terragrunt plan"
-alias tg-apply="terragrunt apply"
 
 # Kubernetes aliases
 alias kx="kubectl"
@@ -271,7 +268,6 @@ tf-init() { terraform init }
 tf-plan() { terraform plan }
 tf-apply() { terraform apply }
 tg-plan() { terragrunt plan }
-tg-apply() { terragrunt apply }
 
 # Kubernetes functions
 kx() { kubectl $@ }
