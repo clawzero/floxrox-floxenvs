@@ -305,7 +305,6 @@ function tf-plan
     terraform plan
 end
 
-    terragrunt plan
 end
 
 function kx
