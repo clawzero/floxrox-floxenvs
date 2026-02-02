@@ -267,7 +267,6 @@ az-set-sub() { az account set --subscription $AZURE_SUBSCRIPTION_ID }
 tf-init() { terraform init }
 tf-plan() { terraform plan }
 tf-apply() { terraform apply }
-tg-plan() { terragrunt plan }
 
 # Kubernetes functions
 kx() { kubectl $@ }
@@ -306,7 +305,6 @@ function tf-plan
     terraform plan
 end
 
-function tg-plan
     terragrunt plan
 end
 
