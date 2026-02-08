@@ -1,0 +1,328 @@
+#
+# This is a Flox environment manifest.
+# Visit flox.dev/docs/concepts/manifest/
+# or see flox-edit(1), manifest.toml(5) for more information.
+#
+version = 1
+
+[install]
+# Python runtime
+python.pkg-path = "python3"
+python.version = "3.12.*"
+
+# Azure SDK for Python
+azure-identity.pkg-path = "python312Packages.azure-identity"
+azure-mgmt-resource.pkg-path = "python312Packages.azure-mgmt-resource"
+azure-mgmt-compute.pkg-path = "python312Packages.azure-mgmt-compute"
+azure-mgmt-storage.pkg-path = "python312Packages.azure-mgmt-storage"
+azure-mgmt-network.pkg-path = "python312Packages.azure-mgmt-network"
+azure-mgmt-containerinstance.pkg-path = "python312Packages.azure-mgmt-containerinstance"
+azure-mgmt-containerregistry.pkg-path = "python312Packages.azure-mgmt-containerregistry"
+azure-mgmt-containerservice.pkg-path = "python312Packages.azure-mgmt-containerservice"
+azure-mgmt-keyvault.pkg-path = "python312Packages.azure-mgmt-keyvault"
+azure-mgmt-sql.pkg-path = "python312Packages.azure-mgmt-sql"
+azure-mgmt-cosmosdb.pkg-path = "python312Packages.azure-mgmt-cosmosdb"
+azure-mgmt-redis.pkg-path = "python312Packages.azure-mgmt-redis"
+azure-mgmt-appconfiguration.pkg-path = "python312Packages.azure-mgmt-appconfiguration"
+
+# Azure CLI
+azure-cli.pkg-path = "azure-cli"
+azure-functions.pkg-path = "azure-functions-core-tools-8"
+
+# GitHub CLI
+gh.pkg-path = "gh"
+gh.version = ">=2.40"
+
+# Infrastructure as Code
+terraform.pkg-path = "terraform"
+
+# Kubernetes
+kubectl.pkg-path = "kubernetes"
+helm.pkg-path = "helm"
+k9s.pkg-path = "k9s"
+
+# Utilities
+gum.pkg-path = "gum"
+bat.pkg-path = "bat"
+curl.pkg-path = "curl"
+coreutils.pkg-path = "coreutils"
+git.pkg-path = "git"
+git-lfs.pkg-path = "git-lfs"
+openssl.pkg-path = "openssl"
+
+[vars]
+# Python configuration
+PYTHONUTF8 = "1"
+PIP_DISABLE_PIP_VERSION_CHECK = "1"
+UV_CACHE_DIR = "$FLOX_ENV_CACHE/.uv-cache"
+PIP_CACHE_DIR = "$FLOX_ENV_CACHE/.pip-cache"
+
+# Azure configuration defaults
+AZURE_TF_RESOURCE_GROUP = "flox"
+AZURE_TF_LOCATION = "eastus"
+AZURE_VM_SIZE = "Standard_B2s"
+
+[hook]
+on-activate = '''
+# Azure environment bootstrap
+
+# Ensure cache directories exist
+mkdir -p "$FLOX_ENV_CACHE/.uv-cache"
+mkdir -p "$FLOX_ENV_CACHE/.pip-cache"
+mkdir -p "$FLOX_ENV_CACHE/venvs"
+mkdir -p "$HOME/.config/azure"
+mkdir -p "$HOME/.config/gh/flox"
+
+# Detect operating system
+detect_os() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        echo "linux"
+    else
+        echo "unsupported"
+    fi
+}
+
+# Check and configure git user info
+check_git_user() {
+    local git_user_name=$(git config --global user.name 2>/dev/null)
+    local git_user_email=$(git config --global user.email 2>/dev/null)
+    
+    if [[ -z "$git_user_name" || -z "$git_user_email" ]]; then
+        if gum confirm "Configure Git user info?" --default=true 2>/dev/null; then
+            if [[ -z "$git_user_name" ]]; then
+                git_user_name=$(gum input --prompt "Enter your full name for Git commits: " --placeholder "John Doe")
+                [[ -n "$git_user_name" ]] && git config --global user.name "$git_user_name"
+            fi
+            if [[ -z "$git_user_email" ]]; then
+                git_user_email=$(gum input --prompt "Enter your email for Git commits: " --placeholder "john@example.com")
+                [[ -n "$git_user_email" ]] && git config --global user.email "$git_user_email"
+            fi
+        fi
+    fi
+}
+
+# Azure credential setup
+setup_azure_creds() {
+    local creds_file="$HOME/.config/azure/credentials"
+    local config_file="$HOME/.config/azure/config"
+    
+    # Check if AZURE_CLIENT_ID is already set
+    if [[ -n "$AZURE_CLIENT_ID" && -n "$AZURE_CLIENT_SECRET" && -n "$AZURE_TENANT_ID" ]]; then
+        echo "Azure credentials already set as environment variables."
+        return 0
+    fi
+    
+    # Check for existing credentials file
+    if [[ -f "$creds_file" ]]; then
+        source "$creds_file"
+        if [[ -n "$AZURE_CLIENT_ID" ]]; then
+            echo "Azure credentials loaded from $creds_file"
+            export AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID
+            return 0
+        fi
+    fi
+    
+    # Prompt for Azure credentials
+    gum style --border double --margin "1 2" --padding "1 4" \
+        "Azure DevOps Environment Setup" \
+        "" \
+        "Enter your Azure Service Principal credentials:"
+    
+    local sub_id=$(gum input --placeholder "subscription-id" --header "Azure Subscription ID")
+    local tenant_id=$(gum input --placeholder "tenant-id" --header "Azure Tenant ID")
+    local client_id=$(gum input --placeholder "client-id" --header "Azure Client ID")
+    local client_secret=$(gum input --password --header "Azure Client Secret")
+    
+    # Save credentials
+    mkdir -p "$(dirname "$creds_file")"
+    cat > "$creds_file" << EOF
+# Azure credentials - keep secure!
+export AZURE_SUBSCRIPTION_ID="$sub_id"
+export AZURE_TENANT_ID="$tenant_id"
+export AZURE_CLIENT_ID="$client_id"
+export AZURE_CLIENT_SECRET="$client_secret"
+EOF
+    chmod 600 "$creds_file"
+    
+    export AZURE_SUBSCRIPTION_ID="$sub_id"
+    export AZURE_TENANT_ID="$tenant_id"
+    export AZURE_CLIENT_ID="$client_id"
+    export AZURE_CLIENT_SECRET="$client_secret"
+    
+    echo "Azure credentials saved to $creds_file"
+}
+
+# GitHub token setup
+setup_github_token() {
+    local config_file="$HOME/.config/gh/flox/github_config"
+    
+    if [[ -n "$GH_TOKEN" ]]; then
+        echo "GitHub token already set as environment variable."
+        return 0
+    fi
+    
+    if [[ -f "$config_file" ]]; then
+        source "$config_file"
+        if [[ -n "$GH_TOKEN" ]]; then
+            echo "GitHub token loaded from config."
+            export GH_TOKEN
+            return 0
+        fi
+    fi
+    
+    gum style --border double --margin "1 2" --padding "1 4" \
+        "GitHub Token Setup" \
+        "" \
+        "Enter your GitHub Personal Access Token:"
+    
+    echo "Create token at: https://github.com/settings/tokens"
+    echo "Required scopes: repo, workflow, read:org"
+    
+    GH_TOKEN=$(gum input --password --header "GitHub PAT")
+    
+    if gum confirm "Persist token?" --affirmative="Yes" --negative="No"; then
+        mkdir -p "$(dirname "$config_file")"
+        cat > "$config_file" << EOF
+GH_TOKEN="$GH_TOKEN"
+EOF
+        chmod 600 "$config_file"
+        echo "Token saved."
+    fi
+    
+    export GH_TOKEN
+    echo "GitHub token configured."
+}
+
+# Python virtual environment setup
+setup_python_env() {
+    local venv_path="$FLOX_ENV_CACHE/venvs/azure"
+    
+    if [[ -d "$venv_path" && -f "$venv_path/bin/activate" ]]; then
+        echo "Python virtual environment already exists."
+        return 0
+    fi
+    
+    echo "Creating Python virtual environment..."
+    python3 -m venv "$venv_path"
+    source "$venv_path/bin/activate"
+    
+    # Install Azure packages
+    echo "Installing Azure SDK packages..."
+    pip install --upgrade pip setuptools wheel 2>/dev/null
+    
+    deactivate
+    echo "Python environment ready at $venv_path"
+}
+
+# Run setup in non-testing mode
+if [[ "$FLOX_ENVS_TESTING" != "1" ]]; then
+    check_git_user
+    setup_azure_creds
+    setup_github_token
+    setup_python_env
+fi
+'''
+
+[profile]
+bash = '''
+# Azure CLI convenience aliases
+alias az-login="az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID"
+alias az-whoami="az account show"
+alias az-list="az account list --output table"
+alias az-set-sub="az account set --subscription \$AZURE_SUBSCRIPTION_ID"
+
+# Terraform aliases
+alias tf-init="terraform init"
+alias tf-plan="terraform plan"
+alias tf-apply="terraform apply"
+
+# Kubernetes aliases
+alias kx="kubectl"
+alias k-ns="kubectl get ns"
+alias k-pods="kubectl get pods -A"
+alias k-contexts="kubectl config get-contexts"
+
+# Python venv activation
+azure-venv() {
+    source "$FLOX_ENV_CACHE/venvs/azure/bin/activate"
+}
+
+# GitHub aliases
+alias gs="git status"
+alias gd="git diff"
+alias gco="git checkout"
+alias gpr="gh pr create --web"
+'''
+
+zsh = '
+# Azure CLI convenience functions
+az-login() { az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID }
+az-whoami() { az account show }
+az-list() { az account list --output table }
+az-set-sub() { az account set --subscription $AZURE_SUBSCRIPTION_ID }
+
+# Terraform functions
+tf-init() { terraform init }
+tf-plan() { terraform plan }
+tf-apply() { terraform apply }
+
+# Kubernetes functions
+kx() { kubectl $@ }
+k-ns() { kubectl get ns }
+k-pods() { kubectl get pods -A }
+k-contexts() { kubectl config get-contexts }
+
+# Python venv activation
+azure-venv() { source "$FLOX_ENV_CACHE/venvs/azure/bin/activate" }
+
+# Git functions
+gs() { git status $@ }
+gd() { git diff $@ }
+gco() { git checkout $@ }
+gpr() { gh pr create --web $@ }
+'
+
+fish = '
+function az-login
+    az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+end
+
+function az-whoami
+    az account show
+end
+
+function az-list
+    az account list --output table
+end
+
+function tf-init
+    terraform init
+end
+
+function tf-plan
+    terraform plan
+end
+
+end
+
+function kx
+    kubectl $argv
+end
+
+function azure-venv
+    source "$FLOX_ENV_CACHE/venvs/azure/bin/activate.fish"
+end
+
+function gs
+    git status $argv
+end
+
+function gpr
+    gh pr create --web $argv
+end
+'
+
+[options]
+systems = ["aarch64-darwin", "aarch64-linux", "x86_64-darwin", "x86_64-linux"]
